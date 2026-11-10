@@ -10,3 +10,10 @@ Read README.md first.
 | Llama rejects Gemma's `chat_template_kwargs` | `bodyFor()` strips it when the fallback lands on a model that doesn't take it. |
 | A down model fails every call | `once()` in gate.mjs tells Cue once per model per hour per isolate. |
 | Changing shares | Edit `SHARES` in policy.mjs; the test checks they still sum to `CAP`. |
+
+## Definition of done
+
+- `npm test` passes (CI runs `npm run check` on every PR; main is protected).
+- Shares still sum to CAP (a test enforces it); a new app gets its share in the same PR that binds it.
+- `npm run deploy`, then `/prompter/api/health` shows the change.
+- A new way this broke goes in `docs/LESSONS.md`, and in a test if a test can catch it.
