@@ -38,7 +38,7 @@ export function bodyFor(model, body) {
   return rest;
 }
 
-/** Sum the neurons reported in a Workers AI SSE stream (usage arrives near the end). */
+/** The neurons a Workers AI SSE stream reports. Usage can arrive more than once and is cumulative, so keep the last. */
 export async function meter(stream) {
   const reader = stream.getReader(), dec = new TextDecoder();
   let buf = '', neurons = 0, seen = false;
@@ -50,7 +50,7 @@ export async function meter(stream) {
     while ((nl = buf.indexOf('\n')) >= 0) {
       const line = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1);
       if (!line.startsWith('data:')) continue;
-      try { const j = JSON.parse(line.slice(5)); if (j.usage?.neurons) { neurons += j.usage.neurons; seen = true; } } catch { /* [DONE] and partials */ }
+      try { const j = JSON.parse(line.slice(5)); if (Number.isFinite(j.usage?.neurons)) { neurons = j.usage.neurons; seen = true; } } catch { /* [DONE] and partials */ }
     }
   }
   return seen ? neurons : null;
