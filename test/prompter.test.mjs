@@ -44,8 +44,8 @@ test('the fallback chain starts with the model asked for and strips Gemma-only s
 
 const sse = (...lines) => new ReadableStream({ start(c) { for (const l of lines) c.enqueue(new TextEncoder().encode(l)); c.close(); } });
 
-test('meter adds the neurons a stream reports, across chunk boundaries', async () => {
-  assert.equal(await meter(sse('data: {"response":"hi"}\n', 'data: {"usage":{"neur', 'ons":12.5}}\n', 'data: [DONE]\n')), 12.5);
+test('meter keeps the last (cumulative) neurons a stream reports, across chunk boundaries', async () => {
+  assert.equal(await meter(sse('data: {"response":"hi","usage":{"neurons":0.2}}\n', 'data: {"usage":{"neur', 'ons":12.5}}\n', 'data: [DONE]\n')), 12.5);
   assert.equal(await meter(sse('data: {"response":"hi"}\n')), null);
 });
 
@@ -92,4 +92,10 @@ test('over budget: refused with a plain reason, the model is never called, Cue i
   await Promise.all(h.waits);
   assert.equal(h.events[0].type, 'prompter.budget.refused');
   assert.deepEqual(Object.keys(h.events[0].data), ['app', 'day', 'spent']);
+});
+
+test('an app with no share is told so, not told the budget ran out', async () => {
+  const h = harness();
+  await assert.rejects(run({ app: 'stranger', model: 'x', input: {}, ai: {}, ledger: fakeLedger(), ...h }), (e) => e.code === 'no-share' && /stranger has no share/.test(e.message));
+  assert.equal(h.events.length, 0);
 });

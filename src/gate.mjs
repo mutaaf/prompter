@@ -10,6 +10,7 @@ export async function run({ app, model, input, est = DEFAULT_EST, ai, ledger, wa
   const d = day(now);
   est = Number.isFinite(est) && est > 0 ? Math.min(est, 2000) : DEFAULT_EST;
   const r = await ledger.reserve(app, est, d);
+  if (!r.ok && r.reason !== 'budget') throw Object.assign(new Error(`Prompter: ${r.reason}. Add it to SHARES in prompter/src/policy.mjs.`), { code: 'no-share' });
   if (!r.ok) {
     if (r.first) waitUntil(once(publish, { type: 'prompter.budget.refused', id: `budget:${app}:${d}`, data: { app, day: d, spent: Math.round(r.spent) } }));
     throw Object.assign(new Error(`Prompter: today's shared AI allowance for ${app} is used up. It resets at 00:00 UTC.`), { code: 'budget' });

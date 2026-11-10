@@ -15,6 +15,7 @@ export class Ledger extends DurableObject {
   spend(d) { return Object.fromEntries(this.sql.exec('SELECT app, neurons FROM spend WHERE day = ?', d).toArray().map((r) => [r.app, r.neurons])); }
   reserve(app, est, d) {
     const spend = this.spend(d), v = decide(spend, app, est, Date.now());
+    if (!v.ok && !Object.hasOwn(SHARES, app)) return v;
     if (!v.ok) {
       const before = this.sql.exec('SELECT refused FROM spend WHERE day = ? AND app = ?', d, app).toArray()[0]?.refused ?? 0;
       this.sql.exec('INSERT INTO spend (day, app, refused) VALUES (?, ?, 1) ON CONFLICT(day, app) DO UPDATE SET refused = refused + 1', d, app);
