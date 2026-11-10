@@ -1,0 +1,15 @@
+// Prompter: the AI gateway. One shared Workers AI allowance, a guaranteed share per app, model fallback.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "prompter",
+  "main": "src/worker.mjs",
+  "compatibility_date": "2026-10-01",
+  "routes": [{ "pattern": "mutaafaziz.com/prompter/*", "zone_name": "mutaafaziz.com" }],
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": { "enabled": true },
+  "ai": { "binding": "AI" },
+  "durable_objects": { "bindings": [{ "name": "LEDGER", "class_name": "Ledger" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Ledger"] }],
+  "services": [{ "binding": "CUE", "service": "cue", "props": { "source": "prompter" } }]
+}
