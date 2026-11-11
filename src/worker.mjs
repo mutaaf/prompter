@@ -4,6 +4,7 @@
 import { WorkerEntrypoint, DurableObject } from 'cloudflare:workers';
 import { decide, day, days, CAP, ALLOWANCE, SHARES } from './policy.mjs';
 import { run } from './gate.mjs';
+import { log, timed } from 'stagehand';
 
 export class Ledger extends DurableObject {
   constructor(ctx, env) {
@@ -49,16 +50,25 @@ export default class Prompter extends WorkerEntrypoint {
   async run(model, input, opts = {}) {
     const app = this.ctx.props?.app;
     if (!app) throw new Error('Prompter: this binding has no props.app');
-    return run({
+    // One log line per call: app, model, ms, ok. Never the prompt or the answer.
+    return timed('prompter', 'run', () => run({
       app, model, input, est: opts?.est, ai: this.env.AI, ledger: ledger(this.env),
       waitUntil: (p) => this.ctx.waitUntil(p),
       publish: (e) => this.env.CUE?.publish(e).catch(() => {}) ?? Promise.resolve(),
-    });
+    }), { app, model: String(model).slice(0, 80) });
   }
 
   async today() { return { day: day(), cap: CAP, allowance: ALLOWANCE, shares: SHARES, ...(await ledger(this.env).today(day())) }; }
 
   async fetch(req) {
+    const t = Date.now();
+    let res;
+    try { res = await this.route(req); } catch (e) { log('prompter', 'request', { method: req.method, ms: Date.now() - t, ok: false, error: String(e?.message ?? e).slice(0, 200) }); throw e; }
+    log('prompter', 'request', { method: req.method, route: res.status === 404 ? 'unmatched' : '/prompter/api/health', status: res.status, ms: Date.now() - t, ok: res.status < 500 });
+    return res;
+  }
+
+  async route(req) {
     const url = new URL(req.url), path = url.pathname.replace(/\/+$/, '');
     if (path === '/prompter/api/health') {
       const n = days(url.searchParams.get('days'));

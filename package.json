@@ -3,9 +3,10 @@
   "private": true,
   "type": "module",
   "engines": { "node": ">=22" },
+  "dependencies": { "stagehand": "github:mutaaf/stagehand#v1.0.0" },
   "scripts": {
     "test": "node --test \"test/*.test.mjs\"",
     "check": "npm test && npx --yes wrangler@4 deploy --dry-run --outdir /tmp/prompter-dry >/dev/null && echo bundle-ok",
-    "deploy": "npm test && npx --yes wrangler@4 deploy && curl -sf https://mutaafaziz.com/prompter/api/health"
+    "deploy": "npm ci --no-audit --no-fund && npm test && npx --yes wrangler@4 deploy && curl -sf https://mutaafaziz.com/prompter/api/health"
   }
 }
