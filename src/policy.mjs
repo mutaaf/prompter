@@ -4,7 +4,7 @@
 // So nobody is starved in the morning, and the allowance isn't left unused at night. CAP keeps 500 neurons back for slop in the estimates.
 export const ALLOWANCE = 10000;
 export const CAP = 9500;
-export const SHARES = { 'cold-gas': 3000, 'chalk-talk': 2500, hearth: 1500, kin: 1250, metaphases: 1250 };
+export const SHARES = { 'cold-gas': 2800, 'chalk-talk': 2500, hearth: 1500, kin: 1250, metaphases: 1250, playbill: 200 };
 export const DEFAULT_EST = 20; // neurons; a judging is ~13, a Hearth insight ~17
 
 export const day = (now = Date.now()) => new Date(now).toISOString().slice(0, 10);

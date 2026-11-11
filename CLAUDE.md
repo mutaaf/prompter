@@ -9,6 +9,7 @@ Read README.md first.
 | Metering a stream | `tee()` it: the app gets one branch untouched, `waitUntil` meters the other and settles. |
 | Llama rejects Gemma's `chat_template_kwargs` | `bodyFor()` strips it when the fallback lands on a model that doesn't take it. |
 | A down model fails every call | `once()` in gate.mjs tells Cue once per model per hour per isolate. |
+| HTTP tokens (`/prompter/api/run`) | `~/.config/prompter/tokens` (mode 600) holds plaintext; the Worker secret `TOKENS` holds only hashes. `sh scripts/add-token.sh <app>`; never print a token. `npx wrangler` silently does nothing on the owner's Mac: pass `WRANGLER="node <path>/wrangler.js"` |
 | Changing shares | Edit `SHARES` in policy.mjs; the test checks they still sum to `CAP`. |
 | Logging | One `{service, event, ms, ok}` line per call and request, from [stagehand](https://github.com/mutaaf/stagehand) (GitHub dependency): `npm ci` first. Only app and model are logged, never prompts or answers. |
 

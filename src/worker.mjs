@@ -5,6 +5,7 @@ import { WorkerEntrypoint, DurableObject } from 'cloudflare:workers';
 import { decide, day, days, CAP, ALLOWANCE, SHARES } from './policy.mjs';
 import { run } from './gate.mjs';
 import { log, timed } from 'stagehand';
+import { appForToken, chatRequest, textOf } from './http.mjs';
 
 export class Ledger extends DurableObject {
   constructor(ctx, env) {
@@ -64,7 +65,7 @@ export default class Prompter extends WorkerEntrypoint {
     const t = Date.now();
     let res;
     try { res = await this.route(req); } catch (e) { log('prompter', 'request', { method: req.method, ms: Date.now() - t, ok: false, error: String(e?.message ?? e).slice(0, 200) }); throw e; }
-    log('prompter', 'request', { method: req.method, route: res.status === 404 ? 'unmatched' : '/prompter/api/health', status: res.status, ms: Date.now() - t, ok: res.status < 500 });
+    log('prompter', 'request', { method: req.method, route: res.status === 404 ? 'unmatched' : new URL(req.url).pathname.replace(/\/+$/, ''), status: res.status, ms: Date.now() - t, ok: res.status < 500 });
     return res;
   }
 
@@ -74,6 +75,23 @@ export default class Prompter extends WorkerEntrypoint {
       const n = days(url.searchParams.get('days'));
       return json({ ok: true, service: 'prompter', ...(await this.today()), ...(n ? { history: await ledger(this.env).history(n) } : {}) });
     }
+    if (path === '/prompter/api/run' && req.method === 'POST') return this.http(req);
     return json({ ok: false, error: 'not found' }, 404);
+  }
+
+  // POST /prompter/api/run with Authorization: Bearer <token>. The token names the app (TOKENS secret holds
+  // only hashes); the same ledger, shares and fallback apply. Prompts and answers pass through, never kept.
+  async http(req) {
+    const app = await appForToken(this.env.TOKENS, req.headers.get('authorization'));
+    if (!app) return json({ ok: false, error: 'a valid token is required' }, 401);
+    let body; try { body = await req.json(); } catch { return json({ ok: false, error: 'the body must be JSON' }, 400); }
+    const r = chatRequest(body);
+    if (r.error) return json({ ok: false, error: r.error }, 400);
+    try {
+      const out = await timed('prompter', 'run', () => run({ app, model: r.model, input: r.input, est: 40, ai: this.env.AI, ledger: ledger(this.env), waitUntil: (p) => this.ctx.waitUntil(p), publish: (e) => this.env.CUE?.publish(e).catch(() => {}) ?? Promise.resolve() }), { app, model: r.model, via: 'http' });
+      return json({ ok: true, app, response: textOf(out) });
+    } catch (e) {
+      return json({ ok: false, error: String(e?.message ?? e).slice(0, 200) }, e?.code === 'budget' ? 429 : e?.code === 'no-share' ? 403 : 502);
+    }
   }
 }
