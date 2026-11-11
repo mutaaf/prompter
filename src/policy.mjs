@@ -9,6 +9,9 @@ export const DEFAULT_EST = 20; // neurons; a judging is ~13, a Hearth insight ~1
 
 export const day = (now = Date.now()) => new Date(now).toISOString().slice(0, 10);
 
+/** ?days=N on the health endpoint: 2 to 30 days of history (the ledger keeps 30); anything else means none. */
+export const days = (q) => { const n = q == null || q === '' ? NaN : Number(q); return Number.isInteger(n) && n >= 2 && n <= 30 ? n : 0; };
+
 const left = (now) => 1 - ((now % 864e5) / 864e5);
 
 /** spend: { app: neurons } for today. */

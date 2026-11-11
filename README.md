@@ -38,7 +38,7 @@ app ──env.AI.run()──▶ Prompter ──reserve──▶ Ledger (one Dura
 - A refusal throws a plain message, and Cue emails once per app per day. If that email comes most days,
   it's time for Workers Paid.
 
-`GET /prompter/api/health` shows today's spend, calls and refusals per app, and calls per model.
+`GET /prompter/api/health` shows today's spend, calls and refusals per app, and calls per model. Add `?days=7` (2 to 30) for a `history` of each day's counts per app, oldest first, today included. /ensemble/ on mutaafaziz.com reads it live, so keep the shape.
 
 ## Rules
 
