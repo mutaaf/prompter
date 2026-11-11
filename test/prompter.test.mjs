@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { decide, SHARES, CAP, chain, bodyFor, meter } from '../src/policy.mjs';
+import { decide, SHARES, CAP, chain, bodyFor, meter, days } from '../src/policy.mjs';
 import { run } from '../src/gate.mjs';
 
 test('shares add up to the cap, and the cap leaves headroom under the allowance', () => {
@@ -98,4 +98,10 @@ test('an app with no share is told so, not told the budget ran out', async () =>
   const h = harness();
   await assert.rejects(run({ app: 'stranger', model: 'x', input: {}, ai: {}, ledger: fakeLedger(), ...h }), (e) => e.code === 'no-share' && /stranger has no share/.test(e.message));
   assert.equal(h.events.length, 0);
+});
+
+test('?days= asks for 2 to 30 days of history, and anything else for none', () => {
+  assert.equal(days('7'), 7);
+  assert.equal(days('30'), 30);
+  for (const q of [null, '', '1', '31', '7.5', 'x', '-3']) assert.equal(days(q), 0, String(q));
 });

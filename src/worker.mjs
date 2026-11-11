@@ -2,7 +2,7 @@
 //   "services": [{ "binding": "AI", "service": "prompter", "props": { "app": "cold-gas" } }]
 // and keep calling env.AI.run(model, body). The binding's props name the app, so an app can't spend another's share.
 import { WorkerEntrypoint, DurableObject } from 'cloudflare:workers';
-import { decide, day, CAP, ALLOWANCE, SHARES } from './policy.mjs';
+import { decide, day, days, CAP, ALLOWANCE, SHARES } from './policy.mjs';
 import { run } from './gate.mjs';
 
 export class Ledger extends DurableObject {
@@ -33,6 +33,12 @@ export class Ledger extends DurableObject {
     this.sql.exec('DELETE FROM models WHERE day < ?', day(Date.now() - 30 * 864e5));
     return { apps: this.sql.exec('SELECT app, ROUND(neurons, 1) AS neurons, calls, refused FROM spend WHERE day = ?', d).toArray(), models: this.sql.exec('SELECT model, calls FROM models WHERE day = ?', d).toArray() };
   }
+  // Counts per app for each of the last n UTC days, oldest first, today included. Same counts as today(), nothing more.
+  history(n) {
+    const ds = Array.from({ length: n }, (_, i) => day(Date.now() - (n - 1 - i) * 864e5));
+    const rows = this.sql.exec('SELECT day, app, ROUND(neurons, 1) AS neurons, calls, refused FROM spend WHERE day >= ?', ds[0]).toArray();
+    return ds.map((d) => ({ day: d, apps: rows.filter((r) => r.day === d).map(({ day: _, ...r }) => r) }));
+  }
 }
 
 const json = (b, s = 200) => new Response(JSON.stringify(b, null, 1), { status: s, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
@@ -53,8 +59,11 @@ export default class Prompter extends WorkerEntrypoint {
   async today() { return { day: day(), cap: CAP, allowance: ALLOWANCE, shares: SHARES, ...(await ledger(this.env).today(day())) }; }
 
   async fetch(req) {
-    const path = new URL(req.url).pathname.replace(/\/+$/, '');
-    if (path === '/prompter/api/health') return json({ ok: true, service: 'prompter', ...(await this.today()) });
+    const url = new URL(req.url), path = url.pathname.replace(/\/+$/, '');
+    if (path === '/prompter/api/health') {
+      const n = days(url.searchParams.get('days'));
+      return json({ ok: true, service: 'prompter', ...(await this.today()), ...(n ? { history: await ledger(this.env).history(n) } : {}) });
+    }
     return json({ ok: false, error: 'not found' }, 404);
   }
 }
