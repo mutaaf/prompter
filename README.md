@@ -22,11 +22,12 @@ app ──env.AI.run()──▶ Prompter ──reserve──▶ Ledger (one Dura
 
 | App | Guaranteed share (neurons a day) |
 |---|---|
-| cold-gas | 3,000 |
+| cold-gas | 2,800 |
 | chalk-talk | 2,500 |
 | hearth | 1,500 |
 | kin | 1,250 |
 | metaphases | 1,250 |
+| playbill | 200 (search copy drafts, over HTTP) |
 | **Cap** | **9,500** of the 10,000 allowance |
 
 - An app can always spend its own share.
@@ -39,6 +40,20 @@ app ──env.AI.run()──▶ Prompter ──reserve──▶ Ledger (one Dura
   it's time for Workers Paid.
 
 `GET /prompter/api/health` shows today's spend, calls and refusals per app, and calls per model. Add `?days=7` (2 to 30) for a `history` of each day's counts per app, oldest first, today included. /ensemble/ on mutaafaziz.com reads it live, so keep the shape.
+
+## The HTTP door
+
+For callers that can't hold a service binding (Playbill's search-copy drafting runs in a GitHub Action):
+
+```
+POST /prompter/api/run
+Authorization: Bearer <token>
+{ "messages": [{ "role": "system", "content": "..." }, { "role": "user", "content": "..." }], "max_tokens": 200 }
+→ { "ok": true, "app": "playbill", "response": "..." }
+```
+
+- The token names the app, the way `props.app` does for a binding. The Worker secret `TOKENS` holds only `sha256(token) → app`; plaintext lives in `~/.config/prompter/tokens` (mode 600). `sh scripts/add-token.sh <app>` makes one; the app needs a share.
+- Chat models in the fallback chain only, no streaming, at most 8 messages, 12,000 characters and 400 tokens. Same ledger, shares and fallback as a binding. 429 when the share is spent.
 
 ## Rules
 

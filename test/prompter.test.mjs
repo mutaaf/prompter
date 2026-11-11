@@ -9,9 +9,9 @@ test('shares add up to the cap, and the cap leaves headroom under the allowance'
 });
 
 test('an app inside its share is always allowed, whatever the others did', () => {
-  const spend = { kin: 1250, metaphases: 1250, hearth: 1500, 'chalk-talk': 2500 };
+  const spend = { kin: 1250, metaphases: 1250, hearth: 1500, 'chalk-talk': 2500, playbill: 200 };
   assert.ok(decide(spend, 'cold-gas', 20).ok);
-  assert.ok(decide({ ...spend, 'cold-gas': 2980 }, 'cold-gas', 20).ok);
+  assert.ok(decide({ ...spend, 'cold-gas': 2780 }, 'cold-gas', 20).ok);
 });
 
 const at = (hhmm) => Date.parse(`2026-11-10T${hhmm}:00Z`);
@@ -104,4 +104,28 @@ test('?days= asks for 2 to 30 days of history, and anything else for none', () =
   assert.equal(days('7'), 7);
   assert.equal(days('30'), 30);
   for (const q of [null, '', '1', '31', '7.5', 'x', '-3']) assert.equal(days(q), 0, String(q));
+});
+
+import { appForToken, chatRequest, textOf, sha256 } from '../src/http.mjs';
+test('the HTTP door: a token names its app, and only its hash is held', async () => {
+  const token = 'a'.repeat(64), tokens = JSON.stringify({ [await sha256(token)]: 'playbill' });
+  assert.equal(await appForToken(tokens, `Bearer ${token}`), 'playbill');
+  assert.equal(await appForToken(tokens, `Bearer ${'b'.repeat(64)}`), null);
+  assert.equal(await appForToken(tokens, token), null);
+  assert.equal(await appForToken('not json', `Bearer ${token}`), null);
+  assert.ok(Object.hasOwn(SHARES, 'playbill'), 'the HTTP caller has a share');
+});
+test('the HTTP door takes small chat requests only, never a stream or another model', () => {
+  const ok = chatRequest({ messages: [{ role: 'user', content: 'hi', extra: 1 }], stream: true, max_tokens: 9999 });
+  assert.equal(ok.model, '@cf/google/gemma-4-26b-a4b-it');
+  assert.equal(ok.input.stream, false);
+  assert.equal(ok.input.max_tokens, 400);
+  assert.deepEqual(ok.input.messages, [{ role: 'user', content: 'hi' }]);
+  assert.match(chatRequest({ model: '@cf/openai/whisper', messages: [{ role: 'user', content: 'x' }] }).error, /model/);
+  assert.match(chatRequest({ messages: [] }).error, /messages/);
+  assert.match(chatRequest({ messages: [{ role: 'tool', content: 'x' }] }).error, /role/);
+  assert.match(chatRequest({ messages: [{ role: 'user', content: 'x'.repeat(13000) }] }).error, /characters/);
+  assert.equal(textOf({ response: 'a' }), 'a');
+  assert.equal(textOf({ choices: [{ message: { content: 'b' } }] }), 'b');
+  assert.equal(textOf(null), '');
 });
